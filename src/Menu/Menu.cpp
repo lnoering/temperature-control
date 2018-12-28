@@ -2,10 +2,12 @@
 
 #include <Arduino.h>       // for delayMicroseconds, digitalPinToBitMask, etc
 
+const char *txtFormats[] = {"C","F"};
+
 Menu::Menu(LiquidCrystal &lcd, char *menuOptions[], uint8_t btnLeft, uint8_t btnRight, uint8_t btnUp, uint8_t btnDown, uint8_t enter)
 : _lcd(lcd)
 {
-    _totOptions = 4;       
+    _totOptions = 6;
 
     _txMENU = menuOptions;
 
@@ -56,6 +58,7 @@ void Menu::openMenu()
     byte idxMenu       = 0;
     boolean exitMenu   = false;
     boolean forcePrint = true;
+    char format[_columnsLCD];
 
     _lcd.clear();
 
@@ -85,10 +88,18 @@ void Menu::openMenu()
         {
             switch( idxMenu )
             {
-                case 0: openSubMenu( idxMenu, MENUTYPE::Number,   &memory.d.setPoint, -20.0, 99.9          ); break;
-                case 1: openSubMenu( idxMenu, MENUTYPE::Number,  &memory.d.delay, 0, 60             ); break;
-                case 2: writeConfiguration(); exitMenu = true;                                     break;
-                case 3: readConfiguration();  exitMenu = true;                                     break;
+                case 0:     
+                        sprintf(format,"%c%c",char(223),getTemperatureFormat());
+                        openSubMenu( idxMenu, MENUTYPE::Float,   &memory.d.setPoint, -20.0, 99.9, format); 
+                    break;
+                case 1: openSubMenu( idxMenu, MENUTYPE::Number,  &memory.d.delay, 0, 60, "s"    ); break;
+                case 2: openSubMenu( idxMenu, MENUTYPE::List,  &memory.d.format,  txtFormats    ); break;
+                case 3: 
+                        sprintf(format,"%c%c",char(223),getTemperatureFormat());
+                        openSubMenu( idxMenu, MENUTYPE::Float,   &memory.d.offsetTemp, -20.0, 99.9, format); 
+                    break;
+                case 4: writeConfiguration(); exitMenu = true;                                     break;
+                case 5: readConfiguration();  exitMenu = true;                                     break;
             }
             forcePrint = true;
         }
@@ -112,19 +123,21 @@ void Menu::openMenu()
 
             byte endFor2 = graphMenu+_rowsLCD;
 
+            //Criar o tamanho de colunas em branco conforme a config do display.
+            String print;            
+            for(char y=0; y < _columnsLCD; y++)
+            {
+                print += ' ';
+            }
+
             for( int i=graphMenu, j=0; i< endFor2 ; i++, j++ )
             {
-                char * print;
                 _lcd.setCursor(1, j);
                 if (i<_totOptions) {
-                    print = _txMENU[i];
+                    _lcd.print(_txMENU[i]);
                 } else {
-                    for(int y=0; y < _rowsLCD; y++)
-                    {
-                        print += ' ';
-                    }
+                    _lcd.print(print);
                 }
-                _lcd.print(print);                
             }
 
             for( int i=0 ; i<_rowsLCD ; i++ )
@@ -142,7 +155,7 @@ void Menu::openMenu()
 
 
 
-void Menu::openSubMenu (byte menuID, MENUTYPE screen, int * value, int minValue, int maxValue)
+void Menu::openSubMenu (byte menuID, MENUTYPE screen, int * value, int minValue, int maxValue, char * format = "")
 {
     boolean exitSubMenu = false;
     boolean forcePrint  = true;
@@ -179,16 +192,24 @@ void Menu::openSubMenu (byte menuID, MENUTYPE screen, int * value, int minValue,
             _lcd.setCursor(_columnsLCD-1,1);
             _lcd.print(">");
 
-            if( screen == MENUTYPE::Flag )
-            {
-                _lcd.setCursor(_columnsLCD/2-1, 1);
-                _lcd.print((*value) == 0 ? "NO" : "SI");
-            }
-            else if( screen == MENUTYPE::Number )
-            {
-                _lcd.setCursor(_columnsLCD/2-1, 1);
-                _lcd.print((*value));
-                _lcd.print(" ");
+            switch (screen) {
+                case MENUTYPE::Flag :
+                        _lcd.setCursor(_columnsLCD/2-1, 1);
+                        _lcd.print((*value) == 0 ? "Não" : "Sim");
+                    break;
+                case MENUTYPE::Number :
+                        _lcd.setCursor(_columnsLCD/2-1, 1);
+                        _lcd.print((*value));
+                        _lcd.print(format);
+                        _lcd.print(" ");
+                    break;
+                case MENUTYPE::Float :
+                        _lcd.setCursor(_columnsLCD/2-1, 1);
+                        _lcd.print((*value));
+                        _lcd.print(" ");
+                    break;
+                default:
+                    break;
             }
         }
 
@@ -201,6 +222,8 @@ void Menu::readConfiguration()
 {
     for( int i=0 ; i < sizeof(memory.d) ; i++  )
         memory.b[i] = EEPROM.read(i);
+
+    // memory.d.offsetTemp = 0.5;
 
     writeConfiguration();
 }
@@ -220,10 +243,12 @@ void Menu::writeConfiguration()
  * @param maxValue  Valor maximo que pode ter a variavel.
  */
 
-void Menu::openSubMenu (byte menuID, MENUTYPE screen, float *value, float minValue, float maxValue)
+void Menu::openSubMenu (byte menuID, MENUTYPE screen, float *value, float minValue, float maxValue, char * format = "")
 {
     boolean exitSubMenu = false;
     boolean forcePrint  = true;
+    boolean isFloat = true;
+    float valueAction = 0.1;
 
     _lcd.clear();
 
@@ -233,17 +258,20 @@ void Menu::openSubMenu (byte menuID, MENUTYPE screen, float *value, float minVal
 
         if( btnPressed == MENUBUTTON::Ok )
         {
-            exitSubMenu = true;
+            if(!isFloat) {
+                exitSubMenu = true;
+            }
+            valueAction = 1;
+            isFloat = false;
         }
-        else if( btnPressed == MENUBUTTON::Up && (*value)-1 >= minValue )
+        else if( btnPressed == MENUBUTTON::Up && (*value)-valueAction >= minValue )
         {
-            (*value)--;
+            (*value) -= valueAction;
         }
-        else if( btnPressed == MENUBUTTON::Down && (*value)+1 <= maxValue )
+        else if( btnPressed == MENUBUTTON::Down && (*value)+valueAction <= maxValue )
         {
-            (*value)++;
+            (*value) += valueAction;
         }
-
 
         if( !exitSubMenu && (forcePrint || btnPressed != MENUBUTTON::Unknown) )
         {
@@ -257,21 +285,63 @@ void Menu::openSubMenu (byte menuID, MENUTYPE screen, float *value, float minVal
             _lcd.setCursor(_columnsLCD-1,1);
             _lcd.print(">");
 
-            if( screen == MENUTYPE::Flag )
-            {
-                _lcd.setCursor(_columnsLCD/2-1, 1);
-                _lcd.print((*value) == 0 ? "NO" : "SI");
-            }
-            else if( screen == MENUTYPE::Number )
-            {
-                _lcd.setCursor(_columnsLCD/2-1, 1);
-                _lcd.print((*value));
-                _lcd.print(" ");
-            }
+            _lcd.setCursor(_columnsLCD/2-5, 1);
+            
+            // char display[_columnsLCD] = "";
+            _lcd.print((*value));
+            // sprintf(display,"%c%c",char(223),getTemperatureFormat());
+
+            _lcd.print(format);
+            _lcd.print(" ");
+        }
+    }
+    _lcd.clear();
+}
+
+void Menu::openSubMenu (byte menuID, MENUTYPE screen, byte * value, const char * options[])
+{
+    boolean exitSubMenu = false;
+    boolean forcePrint  = true;
+
+    int minValue = 0;
+    int maxValue = sizeof(options)-1;
+
+    _lcd.clear();
+
+    while( !exitSubMenu )
+    {
+        btnPressed = readButtons();
+
+        if( btnPressed == MENUBUTTON::Ok )
+        {
+            exitSubMenu = true;
+        }
+        else if( btnPressed == MENUBUTTON::Up && (*value)-1 >= minValue )
+        {
+            (*value) --;
+        }
+        else if( btnPressed == MENUBUTTON::Down && (*value)+1 <= maxValue )
+        {
+            (*value) ++;
         }
 
-    }
+        if( !exitSubMenu && (forcePrint || btnPressed != MENUBUTTON::Unknown) )
+        {
+            _lcd.setCursor(0,0);
+            _lcd.print(_txMENU[menuID]);
 
+            _lcd.setCursor(0,1);
+            _lcd.print("<");
+            _lcd.setCursor(_columnsLCD-1,1);
+            _lcd.print(">");
+
+            _lcd.setCursor(_columnsLCD/2-1, 1);
+            _lcd.print(options[(*value)]);
+            _lcd.print(" ");
+
+            forcePrint = false;        
+        }
+    }
     _lcd.clear();
 }
 
@@ -279,9 +349,20 @@ float Menu::getSetPoint()
 {
     return memory.d.setPoint;
 }
+
 int Menu::getOffsetRele()
 {
     return memory.d.delay;
+}
+
+char Menu::getTemperatureFormat()
+{
+    return *txtFormats[memory.d.format];
+}
+
+float Menu::getTemperatureOffset()
+{
+    return memory.d.offsetTemp;
 }
 
 MENUBUTTON Menu::readButtons()

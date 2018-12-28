@@ -11,9 +11,18 @@ DS18B20::~DS18B20()
     delete _ds;
 }
 
-float DS18B20::getTemperature()
+float DS18B20::getTemperature(char format)
 {
-    return _celsius;
+    if(format == 'C') {
+        return _celsius;
+    } else {
+        return _celsius * 1.8 + 32.0;
+    }
+}
+
+void DS18B20::setTemperatureOffset(float offset)
+{
+    _offset = offset;
 }
 
 void DS18B20::read()
@@ -78,6 +87,7 @@ void DS18B20::read()
         else if (cfg == 0x40) raw = raw & ~1; // 11 bit res, 375 ms
         //// default is 12 bit resolution, 750 ms conversion time
     }
+    _celsius -= _offset;
     _celsius = (float)raw / 16.0;
     // fahrenheit = celsius * 1.8 + 32.0;
 }

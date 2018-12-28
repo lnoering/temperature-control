@@ -13,12 +13,14 @@
     #define ARRAY_SIZE(x) (sizeof((x)) / sizeof((x)[0]))
 #endif
 enum MENUBUTTON { Unknown, Ok, Up, Down, Left, Right };
-enum MENUTYPE { Menu1, Menu2, Flag, Number };
+enum MENUTYPE { Menu1, Menu2, Flag, Number, Float, List };
 
 /* CONFIGURACOES */
 struct MYDATA{             // Estrutura STRUCT com as variables que armazenarao ds datos que na memoria EEPROM
     float setPoint;
     int delay;
+    byte format;
+    float offsetTemp;
 };
 union MEMORY{             // Estrutura UNION para facilitar a leitura e escrita na EEPROM da estrutura STRUCT
     MYDATA d;
@@ -39,11 +41,14 @@ class Menu
         void readConfiguration();
         void writeConfiguration();
         MENUBUTTON readButtons();
-        void openSubMenu(byte menuID, MENUTYPE screen, float *value, float minValue, float maxValue );
-        void openSubMenu(byte menuID, MENUTYPE screen, int *value, int minValue, int maxValue );
+        void openSubMenu(byte menuID, MENUTYPE screen, float *value, float minValue, float maxValue, char * format = "");
+        void openSubMenu(byte menuID, MENUTYPE screen, int *value, int minValue, int maxValue, char * format = "" );
+        void openSubMenu (byte menuID, MENUTYPE screen, byte * value, const char * options[]);
         
         float getSetPoint();
         int getOffsetRele();
+        char getTemperatureFormat();
+        float getTemperatureOffset();
     private:
         float           _temperature;
         unsigned int    _timeToControl;
@@ -70,6 +75,8 @@ class Menu
         Button *_btnUp;
         Button *_btnDown;
         Button *_btnEnter;
+
+
           
 };
 

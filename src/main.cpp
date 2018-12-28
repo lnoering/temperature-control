@@ -15,14 +15,15 @@ Temperature _temperature(A1,28,10);
 
 
 char *txtMENU[] = {                                // Los textos del menu principal, la longitud maxima = columnsLCD-1, rellenar caracteres sobrantes con espacios.
-    "Set Point Tempe.   ",
+    "Set Point Temp.    ",
     "Offset Rele        ",
+    "Formato Temp.      ",
+    "Offset Temp.       ",
     "Salvar e Sair      ",
     "Sair               ",
 };
+
 Menu menu(lcd, txtMENU, 11,13,12,10,9);
-
-
 
 void setup() {  
     lcd.begin(20, 4);
@@ -42,16 +43,21 @@ void setup() {
 
 void loop() {
     char display[20] = "",
-         temp[8] = "";
+         temp[8] = "",
+         format;
 
     menu.loop();
-    dtostrf(_ds.getTemperature(),4,1,temp);
-    sprintf(display,"%s%s%c%c","Temperatura ",temp,char(223),'C');
+
+    _ds.setTemperatureOffset(menu.getTemperatureOffset());
+
+    format = menu.getTemperatureFormat();
+    dtostrf(_ds.getTemperature(format),4,1,temp);
+    sprintf(display,"%s%s%c%c","Temperatura ",temp,char(223),format);
     menu.render(display, 0, 0);
     _temperature.setControl(menu.getSetPoint());
     _temperature.setOffset(menu.getOffsetRele());
     dtostrf(menu.getSetPoint(),4,1,temp);
-    sprintf(display,"%s%s%c%c","Set Point ",temp,char(223),'C');
+    sprintf(display,"%s%s%c%c","Set Point ",temp,char(223),format);
     menu.render(display, 0, 1);
 }
 
@@ -59,5 +65,7 @@ ISR(TIMER1_OVF_vect)
 {
     TCNT1 = 0xC2F7;                                 // Renicia TIMER
     _ds.read();
-    _temperature.control(_ds.getTemperature());
+    char format = menu.getTemperatureFormat();
+    float temp = _ds.getTemperature(format);
+    _temperature.control(temp);
 }

@@ -13,14 +13,15 @@ class DS18B20
         virtual ~DS18B20(); // destructor
 
         void read();
-        float getTemperature();
+        float getTemperature(char format);
+        void setTemperatureOffset(float offset);
     private:
         uint8_t     _pin;
         byte        present = 0,
                     
                     addr[8];
         float       _celsius;
-        // float    fahrenheit;
+        float       _offset;
         OneWire     *_ds;
 };
 
