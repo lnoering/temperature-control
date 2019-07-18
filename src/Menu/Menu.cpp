@@ -58,7 +58,17 @@ void Menu::openMenu()
     byte idxMenu       = 0;
     boolean exitMenu   = false;
     boolean forcePrint = true;
+    
+    int line = 0;
+    int optionControl = 1;
+    unsigned int invert= 0;
     char format[_columnsLCD];
+
+    int graphMenu     = 0;
+    int oldOptControl     = 1;
+    int lineWalk      = 0;
+    int countAction = 0;
+
 
     _lcd.clear();
 
@@ -73,6 +83,22 @@ void Menu::openMenu()
             } else {
                 idxMenu = _totOptions-1;
             }
+            if(optionControl == -1)
+            {
+                graphMenu = 0;
+            }
+            optionControl = 1;
+            
+            if(idxMenu > 0) {
+                line = (_totOptions-1) % idxMenu;
+            } else {
+                line = 1;
+            }
+            if(graphMenu > 0 && idxMenu <= (_totOptions - _rowsLCD)) {
+                line = idxMenu;
+            }
+
+            graphMenu = (idxMenu >= _rowsLCD?(idxMenu - _rowsLCD)+1+line:line); 
         }
         
         if( btnPressed == MENUBUTTON::Down )
@@ -82,7 +108,11 @@ void Menu::openMenu()
             } else {
                 idxMenu = 0;
             }
-            
+
+            optionControl = -1;
+
+            graphMenu = (idxMenu >= _rowsLCD?(idxMenu - _rowsLCD)+1:0);    
+                    
         }
         else if( btnPressed == MENUBUTTON::Ok )
         {
@@ -110,17 +140,8 @@ void Menu::openMenu()
             forcePrint = false;
 
             static const byte endFor1 = (_totOptions+_rowsLCD-1)/_rowsLCD;
-            int graphMenu     = 0;
 
-            for( int i=1 ; i<=endFor1 ; i++ )
-            {
-                if( idxMenu < i*_rowsLCD )
-                {
-                    graphMenu = (i-1) * _rowsLCD;
-                    break;
-                }
-            }
-
+            // line = (idxMenu - graphMenu) % _rowsLCD;
             byte endFor2 = graphMenu+_rowsLCD;
 
             //Criar o tamanho de colunas em branco conforme a config do display.
@@ -138,14 +159,20 @@ void Menu::openMenu()
                 } else {
                     _lcd.print(print);
                 }
-            }
 
-            for( int i=0 ; i<_rowsLCD ; i++ )
-            {
-                _lcd.setCursor(0, i);
-                _lcd.print(" ");
+
+                _lcd.setCursor(15, j);
+                _lcd.print(i);
+                _lcd.print(idxMenu);
+                _lcd.print(graphMenu);
+                // _lcd.print((idxMenu ) % _rowsLCD);
+
+                _lcd.print(line);
             }
-            _lcd.setCursor(0, idxMenu % _rowsLCD );
+            
+            _lcd.setCursor(0, ((idxMenu - graphMenu)+optionControl) % _rowsLCD );
+            _lcd.print(" ");
+            _lcd.setCursor(0, (idxMenu - graphMenu) % _rowsLCD );
             _lcd.write(_iARROW);
         }
     }
